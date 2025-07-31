@@ -1,36 +1,57 @@
+# backend/app.py
 from flask import Flask, request, jsonify
-from werkzeug.utils import secure_filename
+from flask_cors import CORS
 import os
+import cv2
+import torch
 import easyocr
+from werkzeug.utils import secure_filename
 from utils import detect_weather
 
 app = Flask(__name__)
+CORS(app)
+
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-reader = easyocr.Reader(['en'])  # Initialize OCR reader
+# Load EasyOCR once
+ocr_reader = easyocr.Reader(['en'], gpu=False)
 
-@app.route("/process", methods=["POST"])
+@app.route('/process', methods=['POST'])
 def process_image():
-    if 'image' not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image uploaded'}), 400
 
-    file = request.files['image']
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
+        image_file = request.files['image']
+        filename = secure_filename(image_file.filename)
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        image_file.save(filepath)
 
-    # Run OCR to read license plate
-    ocr_results = reader.readtext(filepath, detail=0)
-    plate_text = max(ocr_results, key=len) if ocr_results else "Not Detected"
+        # Load image with OpenCV
+        image = cv2.imread(filepath)
+        if image is None:
+            return jsonify({'error': 'Invalid image'}), 400
 
-    # Predict weather condition
-    weather = detect_weather(filepath)
+        # OCR
+        ocr_results = ocr_reader.readtext(image)
+        number_plate = ''
+        for (bbox, text, prob) in ocr_results:
+            if prob > 0.5:  # Confidence threshold
+                number_plate = text
+                break
 
-    return jsonify({
-        "plate": plate_text,
-        "weather": weather
-    })
+        # Weather detection
+        weather = detect_weather(filepath)
 
-if __name__ == "__main__":
+        return jsonify({
+            'number_plate': number_plate,
+            'weather': weather
+        })
+
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+
+if __name__ == '__main__':
     app.run(debug=True)

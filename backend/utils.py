@@ -1,26 +1,33 @@
+# backend/utils.py
 import torch
 from torchvision import transforms
 from PIL import Image
 
-# Load pre-trained PyTorch model
-model = torch.load("weather_model.pt", map_location=torch.device('cpu'))
-model.eval()
+# Define your class labels (adjust as per your training)
+CLASSES = ['clear', 'rainy', 'dark']
 
-# Define your class labels
-classes = ['rainy', 'dark', 'clear']
-
-# Define preprocessing pipeline
+# Transform pipeline (compatible with Pillow >=10.0.0)
 transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
+    transforms.Resize((224, 224), interpolation=Image.Resampling.LANCZOS),
+    transforms.ToTensor()
 ])
 
+# Load model (make sure weather_model.pt exists)
+try:
+    model = torch.load("weather_model.pt", map_location=torch.device('cpu'))
+    model.eval()
+except Exception as e:
+    print("Failed to load weather model:", e)
+    model = None
+
 def detect_weather(image_path):
-    image = Image.open(image_path).convert("RGB")
-    input_tensor = transform(image).unsqueeze(0)
-    
+    if model is None:
+        return 'model_not_loaded'
+
+    image = Image.open(image_path).convert('RGB')
+    img_tensor = transform(image).unsqueeze(0)
+
     with torch.no_grad():
-        output = model(input_tensor)
-        pred_class = output.argmax(1).item()
-    
-    return classes[pred_class]
+        output = model(img_tensor)
+        _, predicted = torch.max(output, 1)
+        return CLASSES[predicted.item()]
