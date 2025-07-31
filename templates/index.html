@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Car Plate & Weather Detection</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>Upload Car Image</h1>
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" name="image" accept="image/*" required />
+    <button type="submit">Upload</button>
+  </form>
+
+  <div id="result"></div>
+
+  <script>
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      const fileInput = document.querySelector('input[name="image"]');
+      formData.append('image', fileInput.files[0]);
+
+      const res = await fetch('/process', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      const resultDiv = document.getElementById('result');
+
+      if (res.ok) {
+        resultDiv.innerHTML = `<p><strong>Plate Number:</strong> ${data.plate_number}</p>
+                               <p><strong>Weather:</strong> ${data.weather}</p>`;
+      } else {
+        resultDiv.innerHTML = `<p style="color:red;">${data.error}: ${data.details || ''}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>
