@@ -1,41 +1,26 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Car Plate & Weather Detection</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-  <h1>Upload Car Image</h1>
-  <form id="uploadForm" enctype="multipart/form-data">
-    <input type="file" name="image" accept="image/*" required />
-    <button type="submit">Upload</button>
-  </form>
+<form id="uploadForm" enctype="multipart/form-data">
+  <input type="file" name="image" accept="image/*" />
+  <button type="submit">Upload</button>
+</form>
 
-  <div id="result"></div>
+<div>
+  <p><strong>License Plate Number:</strong> <span id="plate"></span></p>
+  <p><strong>Weather:</strong> <span id="weather"></span></p>
+</div>
 
-  <script>
-    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData();
-      const fileInput = document.querySelector('input[name="image"]');
-      formData.append('image', fileInput.files[0]);
-
-      const res = await fetch('/process', {
-        method: 'POST',
-        body: formData
-      });
-
-      const data = await res.json();
-      const resultDiv = document.getElementById('result');
-
-      if (res.ok) {
-        resultDiv.innerHTML = `<p><strong>Plate Number:</strong> ${data.plate_number}</p>
-                               <p><strong>Weather:</strong> ${data.weather}</p>`;
-      } else {
-        resultDiv.innerHTML = `<p style="color:red;">${data.error}: ${data.details || ''}</p>`;
-      }
+<script>
+  const form = document.getElementById('uploadForm');
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const res = await fetch('http://localhost:5000/process', {
+      method: 'POST',
+      body: formData
     });
-  </script>
-</body>
-</html>
+
+    const data = await res.json();
+
+    document.getElementById('plate').textContent = data.plate || 'Not found';
+    document.getElementById('weather').textContent = data.weather || 'Unknown';
+  }
+</script>
